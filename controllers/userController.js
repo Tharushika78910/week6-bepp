@@ -97,6 +97,8 @@ const signupUser = async (req, res) => {
 
     res.status(201).json({ user: userData, token });
   } catch (error) {
+    console.log("SIGNUP ERROR:", error.message);
+
     res.status(400).json({ error: error.message });
   }
 };
@@ -145,7 +147,8 @@ const getMe = async (req, res) => {
       return res.status(404).json({ error: "User not found" });
     }
 
-    res.status(200).json({ user });
+    // Return the user object directly (not wrapped in { user })
+    res.status(200).json(user);
   } catch (error) {
     res.status(400).json({ error: error.message });
   }
