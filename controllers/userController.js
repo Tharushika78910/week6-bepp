@@ -1,5 +1,6 @@
 const User = require("../models/userModel");
 const jwt = require("jsonwebtoken");
+const validator = require("validator");
 
 // Generate JWT
 const generateToken = (_id) => {
@@ -12,15 +13,89 @@ const generateToken = (_id) => {
 // @route   POST /api/users/signup
 // @access  Public
 const signupUser = async (req, res) => {
-  const { name, email, password } = req.body;
+  const {
+    name,
+    email,
+    password,
+    phone_number,
+    gender,
+    date_of_birth,
+    membership_status,
+  } = req.body;
 
   try {
-    const user = await User.signup(name, email, password);
+    // 1. Check required fields
+    if (
+      !name ||
+      !email ||
+      !password ||
+      !phone_number ||
+      !gender ||
+      !date_of_birth ||
+      !membership_status
+    ) {
+      return res.status(400).json({ error: "All fields are required" });
+    }
 
-    // create a token
+    // 2. Validate email format
+    if (!validator.isEmail(email)) {
+      return res.status(400).json({ error: "Invalid email format" });
+    }
+
+    // 3. Validate strong password
+    if (!validator.isStrongPassword(password)) {
+      return res.status(400).json({ error: "Password is too weak" });
+    }
+
+    // 4. Validate phone number (10+ digits)
+    if (!/^\d{10,}$/.test(phone_number)) {
+      return res
+        .status(400)
+        .json({ error: "Phone number must be at least 10 digits" });
+    }
+
+    // 5. Validate enums
+    const allowedGenders = ["Male", "Female", "Other"];
+    const allowedStatuses = ["Active", "Inactive", "Suspended"];
+
+    if (!allowedGenders.includes(gender)) {
+      return res
+        .status(400)
+        .json({ error: "Gender must be Male, Female, or Other" });
+    }
+
+    if (!allowedStatuses.includes(membership_status)) {
+      return res.status(400).json({
+        error: "Membership status must be Active, Inactive, or Suspended",
+      });
+    }
+
+    // 6. Use the model static signup (which also does checks & hashing)
+    const user = await User.signup(
+      name,
+      email,
+      password,
+      phone_number,
+      gender,
+      date_of_birth,
+      membership_status
+    );
+
+    // 7. Create token
     const token = generateToken(user._id);
 
-    res.status(201).json({ email, token });
+    // 8. Build user object to return (no password)
+    const userData = {
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      phone_number: user.phone_number,
+      gender: user.gender,
+      date_of_birth: user.date_of_birth,
+      membership_status: user.membership_status,
+    };
+
+    res.status(201).json({ user: userData, token });
   } catch (error) {
     res.status(400).json({ error: error.message });
   }
@@ -31,17 +106,29 @@ const signupUser = async (req, res) => {
 // @access  Public
 const loginUser = async (req, res) => {
   const { email, password } = req.body;
+
   try {
+    if (!email || !password) {
+      return res.status(400).json({ error: "All fields must be filled" });
+    }
+
     const user = await User.login(email, password);
 
-    if (user) {
-      // create a token
-      const token = generateToken(user._id);
-      res.status(200).json({ email, token });
-    } else {
-      res.status(400);
-      throw new Error("Invalid credentials");
-    }
+    // create a token
+    const token = generateToken(user._id);
+
+    // return full user object (without password)
+    const userData = {
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      phone_number: user.phone_number,
+      gender: user.gender,
+      date_of_birth: user.date_of_birth,
+      membership_status: user.membership_status,
+    };
+
+    res.status(200).json({ user: userData, token });
   } catch (error) {
     res.status(400).json({ error: error.message });
   }
@@ -52,7 +139,13 @@ const loginUser = async (req, res) => {
 // @access  Private
 const getMe = async (req, res) => {
   try {
-    res.status(200).json(req.user);
+    // req.user._id is set by requireAuth
+    const user = await User.findById(req.user._id).select("-password");
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    res.status(200).json({ user });
   } catch (error) {
     res.status(400).json({ error: error.message });
   }
