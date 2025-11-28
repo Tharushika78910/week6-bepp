@@ -2,6 +2,9 @@ const User = require("../models/userModel");
 const jwt = require("jsonwebtoken");
 const validator = require("validator");
 
+const generateToken = (id) => {
+  return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: "3d" });
+};
 
 // @desc    Register new user
 // @route   POST /api/users/signup
@@ -17,20 +20,19 @@ const signupUser = async (req, res) => {
     membership_status,
   } = req.body;
 
-  // ✅ Provide defaults so old tests (that only send name/email/password) still work
-  const safePhoneNumber = phone_number || "1234567890"; // valid: 10 digits
-  const safeGender = gender || "Other";                 // valid enum value
-  const safeDob = date_of_birth || "2000-01-01";        // valid ISO date string
-  const safeStatus = membership_status || "Active";     // valid enum value
+  // Provide defaults for backward compatibility
+  const safePhoneNumber = phone_number || "1234567890";
+  const safeGender = gender || "Other";
+  const safeDob = date_of_birth || "2000-01-01";
+  const safeStatus = membership_status || "Active";
 
   try {
-    // 1. Check required fields (keep backwards compatible with tests)
-    // Tests likely only send: name, email, password
+    // 1. Required fields
     if (!name || !email || !password) {
       return res.status(400).json({ error: "All fields are required" });
     }
 
-    // 2. Validate email format
+    // 2. Validate email
     if (!validator.isEmail(email)) {
       return res.status(400).json({ error: "Invalid email format" });
     }
@@ -40,7 +42,7 @@ const signupUser = async (req, res) => {
       return res.status(400).json({ error: "Password is too weak" });
     }
 
-    // 4. Validate phone number (10+ digits)
+    // 4. Validate phone number
     if (!/^\d{10,}$/.test(safePhoneNumber)) {
       return res
         .status(400)
@@ -63,7 +65,7 @@ const signupUser = async (req, res) => {
       });
     }
 
-    // 6. Use the model static signup (which also does checks & hashing)
+    // 6. Create user AFTER validation
     const user = await User.signup(
       name,
       email,
@@ -77,7 +79,7 @@ const signupUser = async (req, res) => {
     // 7. Create token
     const token = generateToken(user._id);
 
-    // 8. Build user object to return (no password)
+    // 8. Build safe response
     const userData = {
       _id: user._id,
       name: user.name,
@@ -94,6 +96,7 @@ const signupUser = async (req, res) => {
     res.status(400).json({ error: error.message });
   }
 };
+
 
 // @desc    Authenticate a user
 // @route   POST /api/users/login
