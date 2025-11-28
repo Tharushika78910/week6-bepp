@@ -2,12 +2,6 @@ const User = require("../models/userModel");
 const jwt = require("jsonwebtoken");
 const validator = require("validator");
 
-// Generate JWT
-const generateToken = (_id) => {
-  return jwt.sign({ _id }, process.env.SECRET, {
-    expiresIn: "3d",
-  });
-};
 
 // @desc    Register new user
 // @route   POST /api/users/signup
