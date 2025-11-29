@@ -2,6 +2,13 @@ const User = require("../models/userModel");
 const jwt = require("jsonwebtoken");
 const validator = require("validator");
 
+// Helper: generate JWT using SECRET from .env
+const generateToken = (id) => {
+  if (!process.env.SECRET) {
+    throw new Error("JWT secret (SECRET) not configured");
+  }
+  return jwt.sign({ _id: id }, process.env.SECRET, { expiresIn: "3d" });
+};
 
 // @desc    Register new user
 // @route   POST /api/users/signup
@@ -17,17 +24,18 @@ const signupUser = async (req, res) => {
     membership_status,
   } = req.body;
 
-  // ✅ Provide defaults so old tests (that only send name/email/password) still work
-  const safePhoneNumber = phone_number || "1234567890"; // valid: 10 digits
-  const safeGender = gender || "Other";                 // valid enum value
-  const safeDob = date_of_birth || "2000-01-01";        // valid ISO date string
-  const safeStatus = membership_status || "Active";     // valid enum value
-
   try {
-    // 1. Check required fields (keep backwards compatible with tests)
-    // Tests likely only send: name, email, password
-    if (!name || !email || !password) {
-      return res.status(400).json({ error: "All fields are required" });
+    // 1. Check required fields (ALL of them)
+    if (
+      !name ||
+      !email ||
+      !password ||
+      !phone_number ||
+      !gender ||
+      !date_of_birth ||
+      !membership_status
+    ) {
+      return res.status(400).json({ error: "All fields must be filled" });
     }
 
     // 2. Validate email format
@@ -41,43 +49,50 @@ const signupUser = async (req, res) => {
     }
 
     // 4. Validate phone number (10+ digits)
-    if (!/^\d{10,}$/.test(safePhoneNumber)) {
+    if (!/^\d{10,}$/.test(phone_number)) {
       return res
         .status(400)
         .json({ error: "Phone number must be at least 10 digits" });
     }
 
-    // 5. Validate enums
+    // 5. Validate gender and membership_status enums
     const allowedGenders = ["Male", "Female", "Other"];
     const allowedStatuses = ["Active", "Inactive", "Suspended"];
 
-    if (!allowedGenders.includes(safeGender)) {
+    if (!allowedGenders.includes(gender)) {
       return res
         .status(400)
         .json({ error: "Gender must be Male, Female, or Other" });
     }
 
-    if (!allowedStatuses.includes(safeStatus)) {
+    if (!allowedStatuses.includes(membership_status)) {
       return res.status(400).json({
         error: "Membership status must be Active, Inactive, or Suspended",
       });
     }
 
-    // 6. Use the model static signup (which also does checks & hashing)
+    // 6. Validate date_of_birth format (YYYY-MM-DD)
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date_of_birth)) {
+      return res.status(400).json({
+        error: 'Date of birth must be in the format "YYYY-MM-DD"',
+      });
+    }
+
+    // 7. Use the model static signup (does extra checks & hashing)
     const user = await User.signup(
       name,
       email,
       password,
-      safePhoneNumber,
-      safeGender,
-      safeDob,
-      safeStatus
+      phone_number,
+      gender,
+      date_of_birth,
+      membership_status
     );
 
-    // 7. Create token
+    // 8. Create token
     const token = generateToken(user._id);
 
-    // 8. Build user object to return (no password)
+    // 9. Build user object to return (no password)
     const userData = {
       _id: user._id,
       name: user.name,
@@ -139,7 +154,6 @@ const getMe = async (req, res) => {
       return res.status(404).json({ error: "User not found" });
     }
 
-    // Build a clean profile object with only the expected fields
     const userProfile = {
       _id: user._id,
       name: user.name,
@@ -150,7 +164,6 @@ const getMe = async (req, res) => {
       membership_status: user.membership_status,
     };
 
-    // Return the user object directly (not wrapped in { user: ... })
     res.status(200).json(userProfile);
   } catch (error) {
     res.status(500).json({ error: "Failed to get user profile" });
