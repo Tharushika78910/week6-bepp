@@ -2,17 +2,14 @@ const User = require("../models/userModel");
 const jwt = require("jsonwebtoken");
 const validator = require("validator");
 
-<<<<<<< HEAD
+
 // Helper: generate JWT using SECRET from .env
 const generateToken = (id) => {
   if (!process.env.SECRET) {
     throw new Error("JWT secret (SECRET) not configured");
   }
   return jwt.sign({ _id: id }, process.env.SECRET, { expiresIn: "3d" });
-=======
-const generateToken = (id) => {
-  return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: "3d" });
->>>>>>> f99cd3f7227b5ff7c5702e8961abeaa3d242ac74
+
 };
 
 // @desc    Register new user
@@ -29,7 +26,7 @@ const signupUser = async (req, res) => {
     membership_status,
   } = req.body;
 
-<<<<<<< HEAD
+
   try {
     // 1. Check required fields (ALL of them)
     if (
@@ -42,18 +39,8 @@ const signupUser = async (req, res) => {
       !membership_status
     ) {
       return res.status(400).json({ error: "All fields must be filled" });
-=======
-  // Provide defaults for backward compatibility
-  const safePhoneNumber = phone_number || "1234567890";
-  const safeGender = gender || "Other";
-  const safeDob = date_of_birth || "2000-01-01";
-  const safeStatus = membership_status || "Active";
 
-  try {
-    // 1. Required fields
-    if (!name || !email || !password) {
-      return res.status(400).json({ error: "All fields are required" });
->>>>>>> f99cd3f7227b5ff7c5702e8961abeaa3d242ac74
+ 
     }
 
     // 2. Validate email
@@ -66,13 +53,10 @@ const signupUser = async (req, res) => {
       return res.status(400).json({ error: "Password is too weak" });
     }
 
-<<<<<<< HEAD
+
     // 4. Validate phone number (10+ digits)
     if (!/^\d{10,}$/.test(phone_number)) {
-=======
-    // 4. Validate phone number
-    if (!/^\d{10,}$/.test(safePhoneNumber)) {
->>>>>>> f99cd3f7227b5ff7c5702e8961abeaa3d242ac74
+
       return res
         .status(400)
         .json({ error: "Phone number must be at least 10 digits" });
@@ -94,7 +78,7 @@ const signupUser = async (req, res) => {
       });
     }
 
-<<<<<<< HEAD
+
     // 6. Validate date_of_birth format (YYYY-MM-DD)
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date_of_birth)) {
       return res.status(400).json({
@@ -103,9 +87,8 @@ const signupUser = async (req, res) => {
     }
 
     // 7. Use the model static signup (does extra checks & hashing)
-=======
-    // 6. Create user AFTER validation
->>>>>>> f99cd3f7227b5ff7c5702e8961abeaa3d242ac74
+
+ 
     const user = await User.signup(
       name,
       email,
@@ -119,11 +102,9 @@ const signupUser = async (req, res) => {
     // 8. Create token
     const token = generateToken(user._id);
 
-<<<<<<< HEAD
+
     // 9. Build user object to return (no password)
-=======
-    // 8. Build safe response
->>>>>>> f99cd3f7227b5ff7c5702e8961abeaa3d242ac74
+
     const userData = {
       _id: user._id,
       name: user.name,
