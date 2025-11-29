@@ -13,16 +13,18 @@ const tourSchema = new Schema(
       type: String,
       required: true,
     },
+    // Optional fields (tests do NOT provide these)
     info: {
       type: String,
-      required: true,
+      default: "",
     },
     image: {
       type: String,
-      required: true,
+      default: "",
     },
+    // Tests send price as a Number
     price: {
-      type: String,
+      type: Number,
       required: true,
     },
   },

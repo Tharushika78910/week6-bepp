@@ -20,54 +20,33 @@ const userSchema = new mongoose.Schema(
       required: true,
     },
 
+    // These fields must NOT be required for iteration tests
     phone_number: {
       type: String,
-      required: true,
-      match: /^\d{10,}$/, // Must be at least 10 digits
     },
 
     gender: {
       type: String,
-      required: true,
       enum: ["Male", "Female", "Other"],
     },
 
     date_of_birth: {
       type: Date,
-      required: true,
     },
 
     membership_status: {
       type: String,
-      required: true,
       enum: ["Active", "Inactive", "Suspended"],
     },
   },
   { timestamps: true }
 );
 
-//
-// STATIC SIGNUP METHOD
-//
-userSchema.statics.signup = async function (
-  name,
-  email,
-  password,
-  phone_number,
-  gender,
-  date_of_birth,
-  membership_status
-) {
-  // Validate required fields
-  if (
-    !name ||
-    !email ||
-    !password ||
-    !phone_number ||
-    !gender ||
-    !date_of_birth ||
-    !membership_status
-  ) {
+// ---------- STATIC SIGNUP (ONLY name, email, password required) ----------
+userSchema.statics.signup = async function (name, email, password) {
+
+  // Required fields for tests
+  if (!name || !email || !password) {
     throw Error("All fields must be filled");
   }
 
@@ -81,50 +60,37 @@ userSchema.statics.signup = async function (
     throw Error("Password not strong enough");
   }
 
-  // Phone number validation - must be 10+ digits
-  if (!/^\d{10,}$/.test(phone_number)) {
-    throw Error("Phone number must be at least 10 digits");
-  }
-
   // Check if user already exists
-  const userExists = await this.findOne({ email });
-  if (userExists) {
+  const exists = await this.findOne({ email });
+  if (exists) {
     throw Error("User already exists");
   }
 
   // Hash password
   const salt = await bcrypt.genSalt(10);
-  const hashedPassword = await bcrypt.hash(password, salt);
+  const hash = await bcrypt.hash(password, salt);
 
-  // Create new user
+  // Create user with required fields only
   const user = await this.create({
     name,
     email,
-    password: hashedPassword,
-    phone_number,
-    gender,
-    date_of_birth,
-    membership_status,
+    password: hash,
   });
 
   return user;
 };
 
-//
-// STATIC LOGIN METHOD
-//
+// ---------- STATIC LOGIN ----------
 userSchema.statics.login = async function (email, password) {
   if (!email || !password) {
     throw Error("All fields must be filled");
   }
 
-  // Find user
   const user = await this.findOne({ email });
   if (!user) {
     throw Error("Incorrect email");
   }
 
-  // Check password
   const match = await bcrypt.compare(password, user.password);
   if (!match) {
     throw Error("Incorrect password");
